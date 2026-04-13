@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>Login Failed</title>
+{% endblock %}
+
+{% block body %}
+<div class="failure">
+    <div class="card status-card">
+        <div class="icon-wrapper">
+            <span class="cross">✕</span>
+        </div>
+        <h1>Access denied</h1>
+        <div class="message">Invalid {{ message }}</div>
+        <a href="{{ url_for('index') }}" class="btn-back">← Try again</a>
+        <div class="hint">
+            <span>Hint: </span><code>user</code> / <code>pass</code>
+        </div>
+    </div>
+</div>
+{% endblock %}

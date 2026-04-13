@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>Login Successful</title>
+{% endblock %}
+
+{% block body %}
+<div class="success">
+    <div class="card status-card">
+        <div class="icon-wrapper">
+            <span class="checkmark">✓</span>
+        </div>
+        <h1>Success!</h1>
+        <div class="message">You have successfully logged in.</div>
+        <a href="{{ url_for('search') }}" class="btn-back">Continue to Downloader →</a>
+    </div>
+</div>
+{% endblock %}

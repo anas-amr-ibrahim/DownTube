@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='search.css') }}">
+<title>Video Downloader | Search</title>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    
+    <!-- Search Box -->
+    <div class="search-card">
+        <h1>🎬 Paste Video URL</h1>
+        <p class="subtitle">Enter a link from YouTube, Vimeo, etc.</p>
+        
+        <form method="POST">
+            <div class="input-wrapper">
+                <input type="url" name="url" placeholder="https://..." required>
+                <button type="submit" class="search-btn">Search</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Error Message -->
+    {% if error %}
+        <div class="info-message" style="color: #f87171;">
+            ⚠️ {{ error }}
+        </div>
+    {% endif %}
+    
+    <!-- Video Info -->
+    {% if title %}
+        <div class="info-message">
+            <h2>{{ title }}</h2>
+            <img src="{{ thumbnail }}" width="300" style="border-radius: 16px; margin-top: 10px;">
+        </div>
+    {% endif %}
+    
+    <!-- Format Selection -->
+    {% if formats %}
+        <div class="search-card" style="margin-top: 20px;">
+            <h3>📺 Choose Quality:</h3>
+            <form id="downloadForm" method="post" action="/start_download">
+                <input type="hidden" name="url" value="{{ url }}">
+                
+                {% for f in formats %}
+                    <div style="margin: 12px 0;">
+                        <input type="radio" name="format_id" value="{{ f.id }}" required>
+                        <strong>{{ f.resolution }}</strong> - {{ f.ext }}
+                        {% if not f.has_audio %}
+                            <span style="color: #f97316;">(no audio 🔇 → will merge audio)</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                
+                <button type="submit" class="search-btn" style="margin-top: 20px;">⬇️ Download</button>
+            </form>
+        </div>
+    {% endif %}
+    
+    <!-- Progress Bar -->
+    <div id="progressBox" style="display:none; margin-top: 20px;">
+        <div class="search-card">
+            <h3>Downloading...</h3>
+            <div style="width:100%; height:30px; background:#334155; border-radius: 15px; overflow: hidden;">
+                <div id="bar" style="height:100%; width:0%; background: #4ade80; transition: width 0.3s;"></div>
+            </div>
+            <p id="percent" style="margin-top: 12px; font-size: 1.2rem;">0%</p>
+            <p id="statusMessage" style="margin-top: 8px; font-size: 0.9rem; color: #94a3b8;">Downloading...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const form = document.getElementById("downloadForm");
+
+if (form) {
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        
+        const res = await fetch("/start_download", {
+            method: "POST",
+            body: formData
+        });
+        
+        const data = await res.json();
+        const file_id = data.file_id;
+        
+        // Show progress box
+        document.getElementById("progressBox").style.display = "block";
+        const statusMsg = document.getElementById("statusMessage");
+        
+        // Poll for progress
+        const progressInterval = setInterval(async () => {
+            const progressRes = await fetch(`/progress/${file_id}`);
+            const progressData = await progressRes.json();
+            
+            // Remove '%' sign and convert to number
+            let percentStr = progressData.progress;
+            let percent = parseFloat(percentStr.replace('%', '')) || 0;
+            
+            // Update progress bar
+            document.getElementById("bar").style.width = percent + "%";
+            document.getElementById("percent").innerText = percent + "%";
+            
+            // When download reaches 100%, tell user we're waiting for merging
+            if (percent >= 99) {
+                statusMsg.innerText = "Download complete. Merging audio/video...";
+            }
+        }, 1000);
+        
+        // Poll for file readiness (after merging)
+        const readyInterval = setInterval(async () => {
+            const readyRes = await fetch(`/ready/${file_id}`);
+            const readyData = await readyRes.json();
+            
+            if (readyData.ready) {
+                clearInterval(progressInterval);
+                clearInterval(readyInterval);
+                statusMsg.innerText = "Ready! Starting download...";
+                // Redirect to download the file
+                window.location.href = `/download/${file_id}`;
+                // Reset UI after a few seconds
+                setTimeout(() => {
+                    document.getElementById("progressBox").style.display = "none";
+                    document.getElementById("bar").style.width = "0%";
+                    document.getElementById("percent").innerText = "0%";
+                }, 2000);
+            }
+        }, 1000);
+    });
+}
+</script>
+{% endblock %}
